@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Changi Chatbot</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap');
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Poppins", sans-serif;
+        }
+        :root {
+            --text-color: #FFFFFF;
+            --icon-color: #ACACBE;
+            --icon-hover-bg: #5b5e71;
+            --placeholder-color: #dcdcdc;
+            --outgoing-chat-bg: #343541;
+            --incoming-chat-bg: #444654;
+        }
+        .light-mode {
+            --text-color: #343541;
+            --icon-color: #a9a9bc;
+            --icon-hover-bg: #f1f1f3;
+        }
+        body {
+            background: var(--outgoing-chat-bg);
+            color: var(--text-color);
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        #query {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+        #search-btn {
+            padding: 10px 20px;
+            font-size: 16px;
+        }
+        .results {
+            margin-top: 20px;
+        }
+        .result-item {
+            border-top: 1px solid #ccc;
+            padding: 10px 0;
+        }
+        .result-item h3, .result-item h4 {
+            margin: 5px 0;
+        }
+        .message-history {
+            margin-top: 20px;
+            padding: 10px;
+            border-top: 1px solid #ccc;
+        }
+        .history-item {
+            padding: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Changi Chatbot</h1>
+    <input type="text" id="query" placeholder="Enter your query..." onkeyup="if (event.key === 'Enter') sendQuery()">
+    <button id="search-btn" onclick="sendQuery()">Send</button>
+    
+    <div class="results" id="results"></div>
+    <div class="message-history" id="message-history">
+        <h3>Chat History</h3>
+        <div id="history-container"></div>
+    </div>
+
+    <script>
+        const chatInput = document.querySelector("#chat-input");
+        const sendButton = document.querySelector("#search-btn");
+        const chatContainer = document.querySelector(".results");
+        const themeButton = document.querySelector("#theme-btn");
+        const deleteButton = document.querySelector("#delete-btn");
+
+        const sendMessageToServer = async (userMessage) => {
+            const response = await fetch('/send_message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message: userMessage })
+            });
+            return await response.json();
+        };
+
+        const appendMessage = (message, sender = 'bot') => {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('chat', sender === 'user' ? 'outgoing' : 'incoming');
+            messageDiv.innerHTML = `<div class="chat-content">
+              <p>${message}</p>
+            </div>`;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTo(0, chatContainer.scrollHeight);
+        };
+
+        sendButton.addEventListener("click", async () => {
+            const userMessage = query.value.trim();
+            if (!userMessage) return;
+            appendMessage(userMessage, 'user');
+            query.value = "";
+            const { response } = await sendMessageToServer(userMessage);
+            appendMessage(response, 'bot');
+        });
+
+        deleteButton?.addEventListener("click", () => {
+            chatContainer.innerHTML = "";
+        });
+
+        themeButton?.addEventListener("click", () => {
+            document.body.classList.toggle("light-mode");
+        });
+
+        async function sendQuery() {
+            const query = document.getElementById('query').value;
+
+            if (query.trim() === '') return;
+
+            // Store user message in chat history
+            const historyContainer = document.getElementById('history-container');
+            const userMessageDiv = document.createElement('div');
+            userMessageDiv.className = 'history-item';
+            userMessageDiv.innerHTML = `<strong>You:</strong> ${query}`;
+            historyContainer.appendChild(userMessageDiv);
+
+            const response = await fetch('/send_message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ message: query }),
+            });
+
+            const data = await response.json();
+            displayResults(data);
+        }
+
+        function displayResults(data) {
+            const resultsContainer = document.getElementById('results');
+            resultsContainer.innerHTML = '';
+
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'result-item';
+
+            resultDiv.innerHTML = `
+                <h3>Bot Response:</h3>
+                <p>${data.response}</p>
+                <h4>Context:</h4>
+                <p>${data.context}</p>
+            `;
+
+            resultsContainer.appendChild(resultDiv);
+
+            // Store bot response in chat history
+            const botMessageDiv = document.createElement('div');
+            botMessageDiv.className = 'history-item';
+            botMessageDiv.innerHTML = `<strong>Bot:</strong> ${data.response}`;
+            historyContainer.appendChild(botMessageDiv);
+        }
+    </script>
+</body>
+</html>
